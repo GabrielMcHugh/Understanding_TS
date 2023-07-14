@@ -17,6 +17,3 @@ let result = add(num1, num2);
             if (output) output.innerText = `${result}`
         }
     })(window, document, undefined)
-
-
-
