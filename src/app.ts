@@ -1,21 +1,88 @@
-//Tuple rest parameters
-const add = (...numbers: [number, number, number]) => {
-    return numbers.reduce((acc, curr) => {
-        return acc + curr
+//Validation with decorators
+
+interface ValidatorConfig {
+    //Index type: multiple properties
+    [property: string]: {
+        [validateableProp: string]: string[]
+    }
+}
+
+const registeredValidators: ValidatorConfig = {}
+
+function Required<This extends {}, Value>(_: undefined, context: ClassFieldDecoratorContext<This, Value>) {
+    let className: string;
+    context.addInitializer(function () {
+        className = this.constructor.name
+
+        registeredValidators[className] = {
+            ...registeredValidators[className],
+            [context.name]: ['required']
+        }
     })
 }
 
-const addNumbers = add(5, 6, 4)
-console.log(addNumbers)
-// const addMoreNumbers = add(5,6,7,8)  #Doesn't work because too many param in tuple
 
+function PositiveNumber<This extends {}, Value>(_: undefined, context: ClassFieldDecoratorContext<This, Value>) {
+    let className: string;
+    context.addInitializer(function () {
+        className = this.constructor.name
 
-let hobbies = ["Cooking", "Cleaning", "Childrearing"]
+        registeredValidators[className] = {
+            ...registeredValidators[className],
+            [context.name]: ['positive']
+        }
+    })
+}
 
-//Array destructuring
-const [hobby1, hobby2, ...remainingHobbies] = hobbies
+function validate(obj: any) {
+    const objValidatorConfig = registeredValidators[obj.constructor.name]
+    if (!objValidatorConfig) {
+        return true;
+    }
+    let isValid = true;
+    for (const prop in objValidatorConfig) {
+        for (const validator of objValidatorConfig[prop]) {
+            switch (validator) {
+                case 'required':
+                    isValid = isValid && !!obj[prop];
+                    break;
+                case 'positive':
+                    isValid = isValid && obj[prop] > 0;
+                    break;
+            }
+        }
+    }
+    return isValid
+}
 
-let animals = { cat: 1, dog: 2, bird: 3, horse: 4}
+class Course {
+    @Required
+    title: string;
+    @PositiveNumber 
+    price: number;
 
-//Object destructing
-const { cat, dog, ...remainingAnimals} = animals
+    constructor(t: string, p: number) {
+        this.title = t;
+        this.price = p;
+    }
+
+}
+
+const courseForm = document.querySelector('form')!;
+courseForm.addEventListener('submit', event => {
+    event.preventDefault();
+    const titleEl = document.getElementById('title') as HTMLInputElement;
+    const priceEl = document.getElementById('price') as HTMLInputElement;
+
+    const title = titleEl.value;
+    const price = +priceEl.value;
+
+    const createdCourse = new Course(title, price)
+
+    if (!validate(createdCourse)) {
+        alert('Invalid input, please try again')
+        return;
+    }
+
+    console.log(createdCourse)
+})
