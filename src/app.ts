@@ -1,88 +1,53 @@
-//Validation with decorators
+function Autobind(value: Function, context: ClassMethodDecoratorContext) {
+    const { kind, name, addInitializer } = context
 
-interface ValidatorConfig {
-    //Index type: multiple properties
-    [property: string]: {
-        [validateableProp: string]: string[]
-    }
-}
-
-const registeredValidators: ValidatorConfig = {}
-
-function Required<This extends {}, Value>(_: undefined, context: ClassFieldDecoratorContext<This, Value>) {
-    let className: string;
-    context.addInitializer(function () {
-        className = this.constructor.name
-
-        registeredValidators[className] = {
-            ...registeredValidators[className],
-            [context.name]: ['required']
-        }
+    addInitializer(function () {
+        (this as any)[name] = (this as any)[name].bind(this)
     })
-}
-
-
-function PositiveNumber<This extends {}, Value>(_: undefined, context: ClassFieldDecoratorContext<This, Value>) {
-    let className: string;
-    context.addInitializer(function () {
-        className = this.constructor.name
-
-        registeredValidators[className] = {
-            ...registeredValidators[className],
-            [context.name]: ['positive']
-        }
-    })
-}
-
-function validate(obj: any) {
-    const objValidatorConfig = registeredValidators[obj.constructor.name]
-    if (!objValidatorConfig) {
-        return true;
-    }
-    let isValid = true;
-    for (const prop in objValidatorConfig) {
-        for (const validator of objValidatorConfig[prop]) {
-            switch (validator) {
-                case 'required':
-                    isValid = isValid && !!obj[prop];
-                    break;
-                case 'positive':
-                    isValid = isValid && obj[prop] > 0;
-                    break;
-            }
-        }
-    }
-    return isValid
-}
-
-class Course {
-    @Required
-    title: string;
-    @PositiveNumber 
-    price: number;
-
-    constructor(t: string, p: number) {
-        this.title = t;
-        this.price = p;
-    }
 
 }
 
-const courseForm = document.querySelector('form')!;
-courseForm.addEventListener('submit', event => {
-    event.preventDefault();
-    const titleEl = document.getElementById('title') as HTMLInputElement;
-    const priceEl = document.getElementById('price') as HTMLInputElement;
+class ProjectInput {
+    templateEl: HTMLTemplateElement;
+    hostEl: HTMLDivElement;
+    element: HTMLFormElement;
+    titleInputEl: HTMLInputElement;
+    descriptionInputEl: HTMLInputElement;
+    peopleInputEl: HTMLInputElement;
 
-    const title = titleEl.value;
-    const price = +priceEl.value;
+    constructor() {
+        this.templateEl = document.getElementById('project-input')! as HTMLTemplateElement;
+        this.hostEl = document.getElementById('app')! as HTMLDivElement;
 
-    const createdCourse = new Course(title, price)
+        const importedNode = document.importNode(this.templateEl.content, true);
+        this.element = importedNode.firstElementChild as HTMLFormElement;
+        this.element.id = 'user-input'
 
-    if (!validate(createdCourse)) {
-        alert('Invalid input, please try again')
-        return;
+        this.titleInputEl = this.element.querySelector('#title') as HTMLInputElement
+        this.descriptionInputEl = this.element.querySelector('#description') as HTMLInputElement
+        this.peopleInputEl = this.element.querySelector('#people') as HTMLInputElement
+
+        this.configure()
+        this.attach()
+
+
     }
 
-    console.log(createdCourse)
-})
+    // @Autobind
+    private submitHandler(event: Event) {
+        event.preventDefault();
+        console.log(this.titleInputEl.value)
+    }
+
+    private configure() {
+        this.element.addEventListener('submit', this.submitHandler.bind(this))
+    }
+
+    private attach() {
+        this.hostEl.insertAdjacentElement('afterbegin', this.element);
+    }
+
+
+}
+
+const prjInput = new ProjectInput()
