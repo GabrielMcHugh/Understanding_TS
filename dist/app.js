@@ -44,6 +44,7 @@ class ProjectState {
             return this.instance;
         }
         this.instance = new ProjectState();
+        return this.instance;
     }
     addListener(listenerFn) {
         this.listeners.push(listenerFn);
@@ -99,6 +100,7 @@ class ProjectList {
         this.type = type;
         this.templateEl = document.getElementById('project-list');
         this.hostEl = document.getElementById('app');
+        this.assignedProjects = [];
         const importedNode = document.importNode(this.templateEl.content, true);
         this.element = importedNode.firstElementChild;
         this.element.id = `${this.type}-projects`;

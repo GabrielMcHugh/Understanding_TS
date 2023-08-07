@@ -4,16 +4,14 @@ class ProjectState {
     private projects: any[] = []
     private static instance: ProjectState;
     
-    private constructor() {
-
-    }
+    private constructor() {}
 
     static getInstance() {
         if (this.instance) {
             return this.instance;
         }
-
         this.instance = new ProjectState()
+        return this.instance
     }
 
     addListener(listenerFn: Function) {
@@ -96,6 +94,7 @@ class ProjectList {
     constructor(private type: 'active' | 'finished') {
         this.templateEl = document.getElementById('project-list')! as HTMLTemplateElement;
         this.hostEl = document.getElementById('app')! as HTMLDivElement;
+        this.assignedProjects = [];
 
         const importedNode = document.importNode(this.templateEl.content, true);
         this.element = importedNode.firstElementChild as HTMLFormElement;
@@ -196,7 +195,7 @@ class ProjectInput {
         const userInput = this.gatherUserInput()
         if (Array.isArray(userInput)) {
             const [title, desc, people] = userInput
-            projectState!.addProject(title, desc, people);
+            projectState.addProject(title, desc, people);
             console.log(title, desc, people)
             this.clearInputs()
         }
