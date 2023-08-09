@@ -71,6 +71,16 @@ class ProjectState extends State {
     addProject(title, description, numOfPeople) {
         const newProject = new Project(Math.random().toString(), title, description, numOfPeople, ProjectStatus.Active);
         this.projects.push(newProject);
+        this.updateListeners();
+    }
+    moveProject(projectId, newStatus) {
+        const project = this.projects.find(prj => prj.id === projectId);
+        if ((project === null || project === void 0 ? void 0 : project.status) !== newStatus) {
+            project.status = newStatus;
+            this.updateListeners();
+        }
+    }
+    updateListeners() {
         for (const listenerFn of this.listeners) {
             listenerFn(this.projects.slice());
         }
@@ -94,11 +104,11 @@ function validate(validatableInput) {
     }
     if (validatableInput.min != null &&
         typeof validatableInput.value === 'number') {
-        isValid = isValid && validatableInput.value > validatableInput.min;
+        isValid = isValid && validatableInput.value >= validatableInput.min;
     }
     if (validatableInput.max != null &&
         typeof validatableInput.value === 'number') {
-        isValid = isValid && validatableInput.value < validatableInput.max;
+        isValid = isValid && validatableInput.value <= validatableInput.max;
     }
     return isValid;
 }
@@ -125,62 +135,125 @@ class Component {
         this.hostEl.insertAdjacentElement(insertAtBeginning ? 'afterbegin' : 'beforeend', this.element);
     }
 }
-class ProjectItem extends Component {
-    constructor(hostId, project) {
-        super('single-project', hostId, false, project.id);
-        this.project = project;
-        this.configure();
-        this.renderContent();
-    }
-    configure() {
-        this.element.querySelector('h2').textContent = this.project.title;
-        this.element.querySelector('h3').textContent = this.project.people.toString();
-        this.element.querySelector('p').textContent = this.project.description;
-    }
-    renderContent() {
-    }
-}
-class ProjectList extends Component {
-    constructor(type) {
-        super('project-list', 'app', false, `${type}-projects`);
-        this.type = type;
-        this.assignedProjects = [];
-        this.configure();
-        this.renderContent();
-    }
-    configure() {
-        projectState.addListener((projects) => {
-            const relevantProjects = projects.filter(prj => {
-                if (this.type === 'active') {
-                    return prj.status === ProjectStatus.Active;
-                }
-                return prj.status === ProjectStatus.Finished;
-            });
-            this.assignedProjects = relevantProjects;
-            this.renderProjects();
-        });
-    }
-    renderContent() {
-        const listId = `${this.type}-project-lists`;
-        this.element.querySelector('ul').id = listId;
-        this.element.querySelector('h2').textContent = this.type.toUpperCase() + ' PROJECTS ';
-    }
-    renderProjects() {
-        const listEl = document.getElementById(`${this.type}-project-lists`);
-        listEl.innerHTML = '';
-        for (const prjItem of this.assignedProjects) {
-            new ProjectItem(this.element.querySelector("ul").id, prjItem);
-        }
-    }
-}
-let ProjectInput = (() => {
+let ProjectItem = (() => {
     var _a;
     let _instanceExtraInitializers = [];
+    let _dragStartHandler_decorators;
+    return _a = class ProjectItem extends Component {
+            get persons() {
+                if (this.project.people === 1) {
+                    return '1 person';
+                }
+                else {
+                    return `${this.project.people} persons`;
+                }
+            }
+            constructor(hostId, project) {
+                super('single-project', hostId, false, project.id);
+                this.project = (__runInitializers(this, _instanceExtraInitializers), void 0);
+                this.project = project;
+                this.configure();
+                this.renderContent();
+            }
+            dragStartHandler(event) {
+                event.dataTransfer.setData('text/plain', this.project.id);
+                event.dataTransfer.effectAllowed = 'move';
+            }
+            dragEndHandler(event) {
+                console.log('DragEnd');
+            }
+            configure() {
+                this.element.addEventListener('dragstart', this.dragStartHandler);
+                this.element.addEventListener('dragend', this.dragEndHandler);
+            }
+            renderContent() {
+                this.element.querySelector('h2').textContent = this.project.title;
+                this.element.querySelector('h3').textContent = this.persons + ' assigned';
+                this.element.querySelector('p').textContent = this.project.description;
+            }
+        },
+        (() => {
+            _dragStartHandler_decorators = [Autobind];
+            __esDecorate(_a, null, _dragStartHandler_decorators, { kind: "method", name: "dragStartHandler", static: false, private: false, access: { has: obj => "dragStartHandler" in obj, get: obj => obj.dragStartHandler } }, null, _instanceExtraInitializers);
+        })(),
+        _a;
+})();
+let ProjectList = (() => {
+    var _a;
+    let _instanceExtraInitializers_1 = [];
+    let _dragOverHandler_decorators;
+    let _dropHandler_decorators;
+    let _dragLeaveHandler_decorators;
+    return _a = class ProjectList extends Component {
+            constructor(type) {
+                super('project-list', 'app', false, `${type}-projects`);
+                this.type = (__runInitializers(this, _instanceExtraInitializers_1), type);
+                this.assignedProjects = [];
+                this.configure();
+                this.renderContent();
+            }
+            dragOverHandler(event) {
+                var _a;
+                if (((_a = event.dataTransfer) === null || _a === void 0 ? void 0 : _a.types[0]) === 'text/plain') {
+                    event.preventDefault();
+                    const listEl = this.element.querySelector('ul');
+                    listEl.classList.add('droppable');
+                }
+            }
+            dropHandler(event) {
+                const prjId = event.dataTransfer.getData('text/plain');
+                projectState.moveProject(prjId, this.type === 'active' ? ProjectStatus.Active : ProjectStatus.Finished);
+            }
+            dragLeaveHandler(event) {
+                const listEl = this.element.querySelector('ul');
+                listEl.classList.remove('droppable');
+            }
+            configure() {
+                this.element.addEventListener('dragover', this.dragOverHandler);
+                this.element.addEventListener('drop', this.dropHandler);
+                this.element.addEventListener('dragleave', this.dragLeaveHandler);
+                projectState.addListener((projects) => {
+                    const relevantProjects = projects.filter(prj => {
+                        if (this.type === 'active') {
+                            return prj.status === ProjectStatus.Active;
+                        }
+                        return prj.status === ProjectStatus.Finished;
+                    });
+                    this.assignedProjects = relevantProjects;
+                    this.renderProjects();
+                });
+            }
+            renderContent() {
+                const listId = `${this.type}-project-lists`;
+                this.element.querySelector('ul').id = listId;
+                this.element.querySelector('h2').textContent = this.type.toUpperCase() + ' PROJECTS ';
+            }
+            renderProjects() {
+                const listEl = document.getElementById(`${this.type}-project-lists`);
+                listEl.innerHTML = '';
+                for (const prjItem of this.assignedProjects) {
+                    new ProjectItem(this.element.querySelector("ul").id, prjItem);
+                }
+            }
+        },
+        (() => {
+            _dragOverHandler_decorators = [Autobind];
+            _dropHandler_decorators = [Autobind];
+            _dragLeaveHandler_decorators = [Autobind];
+            __esDecorate(_a, null, _dragOverHandler_decorators, { kind: "method", name: "dragOverHandler", static: false, private: false, access: { has: obj => "dragOverHandler" in obj, get: obj => obj.dragOverHandler } }, null, _instanceExtraInitializers_1);
+            __esDecorate(_a, null, _dropHandler_decorators, { kind: "method", name: "dropHandler", static: false, private: false, access: { has: obj => "dropHandler" in obj, get: obj => obj.dropHandler } }, null, _instanceExtraInitializers_1);
+            __esDecorate(_a, null, _dragLeaveHandler_decorators, { kind: "method", name: "dragLeaveHandler", static: false, private: false, access: { has: obj => "dragLeaveHandler" in obj, get: obj => obj.dragLeaveHandler } }, null, _instanceExtraInitializers_1);
+        })(),
+        _a;
+})();
+let ProjectInput = (() => {
+    var _a;
+    let _instanceExtraInitializers_2 = [];
     let _submitHandler_decorators;
     return _a = class ProjectInput extends Component {
             constructor() {
                 super('project-input', 'app', true, 'user-input');
-                this.titleInputEl = (__runInitializers(this, _instanceExtraInitializers), void 0);
+                this.titleInputEl = (__runInitializers(this, _instanceExtraInitializers_2), void 0);
                 this.titleInputEl = this.element.querySelector('#title');
                 this.descriptionInputEl = this.element.querySelector('#description');
                 this.peopleInputEl = this.element.querySelector('#people');
@@ -225,7 +298,6 @@ let ProjectInput = (() => {
                 if (Array.isArray(userInput)) {
                     const [title, desc, people] = userInput;
                     projectState.addProject(title, desc, people);
-                    console.log(title, desc, people);
                     this.clearInputs();
                 }
             }
@@ -237,7 +309,7 @@ let ProjectInput = (() => {
         },
         (() => {
             _submitHandler_decorators = [Autobind];
-            __esDecorate(_a, null, _submitHandler_decorators, { kind: "method", name: "submitHandler", static: false, private: false, access: { has: obj => "submitHandler" in obj, get: obj => obj.submitHandler } }, null, _instanceExtraInitializers);
+            __esDecorate(_a, null, _submitHandler_decorators, { kind: "method", name: "submitHandler", static: false, private: false, access: { has: obj => "submitHandler" in obj, get: obj => obj.submitHandler } }, null, _instanceExtraInitializers_2);
         })(),
         _a;
 })();
